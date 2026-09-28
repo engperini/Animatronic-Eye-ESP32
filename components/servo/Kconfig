@@ -1,0 +1,14 @@
+menu "Animatronic eye"
+config EYE_X_GPIO
+    int "Horizontal servo GPIO"
+    range 0 48
+    default 1
+config EYE_Y_GPIO
+    int "Vertical servo GPIO"
+    range 0 48
+    default 2
+config EYE_LID_GPIO
+    int "Eyelid servo GPIO"
+    range 0 48
+    default 4
+endmenu

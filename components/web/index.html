@@ -1,0 +1,112 @@
+<!doctype html>
+<html lang="pt-BR"><meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>Animatronic Eye</title>
+<style>
+:root{color-scheme:dark;font:16px system-ui;background:#0d1624;color:#e4edf8}
+body{max-width:960px;margin:auto;padding:24px}h1{margin-bottom:4px}h2{font-size:1.25rem}
+section{background:#18263a;border:1px solid #344358;border-radius:14px;padding:20px;margin:18px 0}
+button,input,select{font:inherit;border-radius:6px;padding:9px;border:1px solid #63768d}
+button{background:#20497a;color:white;cursor:pointer;margin:5px}button.stop{background:#9a263a}
+input[type=number]{width:90px}input[type=range]{width:65%;vertical-align:middle}label{display:inline-block;margin:8px}
+small{color:#aebfd4}#message{position:sticky;top:0;padding:12px;background:#24364e;z-index:2;white-space:pre-wrap}
+canvas{width:100%;max-width:400px;background:#0d1624;border-radius:12px}.grid{display:flex;flex-wrap:wrap;gap:16px;align-items:center}
+table{border-collapse:collapse}td,th{padding:7px;text-align:left}@media(max-width:600px){body{padding:12px}td,th{padding:3px}input[type=number]{width:60px;max-width:65px}}
+</style>
+<h1>Animatronic Eye</h1><small>XIAO ESP32-S3 Sense · Controle e calibração</small>
+<p id="message" role="status">Conectando…</p>
+<section><h2>Controle</h2><p>Na inicialização os servos ficam desativados. Centralize os servos com o mecanismo desconectado antes de montar.</p>
+<button id="arm">Ativar servos</button><button class="stop" id="stop">Parar / desativar</button>
+<label>Modo <select id="mode"><option value="manual">Manual</option><option value="random">Aleatório</option><option value="tracking">Seguir rosto</option></select></label>
+<div class="grid"><div><p><label>Horizontal <input id="x" type="range" min="-1" max="1" step=".01" value="0"></label></p>
+<p><label>Vertical <input id="y" type="range" min="-1" max="1" step=".01" value="0"></label></p>
+<p><label>Pálpebra <input id="lid" type="range" min="0" max="1" step=".01" value="0"></label></p>
+<button id="center">Centralizar</button></div><canvas id="eye" width="400" height="240" aria-label="Posição do olho"></canvas></div>
+<label>Resposta (0,01–1) <input type="number" id="smoothing" min=".01" max="1" step=".01" value=".12"></label>
+<label>Velocidade (unid./s) <input type="number" id="speed" min=".05" max="3" step=".05" value=".8"></label>
+<label>Deadband <input type="number" id="deadband" min="0" max=".5" step=".01" value=".08"></label>
+<button id="tuning">Aplicar movimento</button></section>
+<section><h2>Calibração visual</h2><p>Pulsos em microssegundos. Comece em 1500 µs e ajuste em pequenos passos. Os limites precisam respeitar mínimo &lt; centro &lt; máximo.</p>
+<table><thead><tr><th>Eixo</th><th>Mín.</th><th>Centro</th><th>Máx.</th><th>Inverter</th></tr></thead><tbody id="axes"></tbody></table>
+<label>Aberta <input id="lid_open" type="number" min="500" max="2500" step="5"></label>
+<label>Fechada <input id="lid_closed" type="number" min="500" max="2500" step="5"></label>
+<label><input id="lid_enabled" type="checkbox"> Habilitar pálpebra</label>
+<p><button id="preview">Aplicar sem gravar</button><button id="save">Gravar na NVS</button></p>
+<div id="positions"></div><small>Aplicar altera os limites imediatamente; mantenha os servos desativados ao configurar valores novos. Os botões de teste usam os limites aplicados. Reiniciar restaura a última gravação.</small></section>
+<section><h2>Câmera e tracking</h2><label><input id="camera" type="checkbox"> Câmera ligada</label>
+<p id="cameraStatus">Câmera desligada</p><small>A câmera inicia desligada. Ligue-a e escolha “Seguir rosto” para tracking. Sem rosto, mantém a posição. A visualização acima mostra coordenadas; não é transmissão de vídeo.</small></section>
+<section><h2>Wi-Fi</h2><form id="wifiForm"><label>Rede <input id="ssid" maxlength="32" required autocomplete="off"></label>
+<label>Senha <input id="password" type="password" maxlength="63" autocomplete="new-password"></label><button>Salvar e reiniciar</button></form>
+<small>Rede de recuperação permanece disponível em 192.168.4.1, inclusive se a conexão com o roteador falhar.</small></section>
+<section><h2>Atualização OTA</h2><p>Selecione apenas o arquivo animatronic_eye.bin gerado para esta placa.</p>
+<input id="firmware" type="file" accept=".bin"><button id="upload">Enviar firmware</button><progress id="progress" max="100" value="0"></progress>
+<small>O envio desativa os servos e a câmera. O firmware anterior é restaurado se o novo não confirmar a inicialização.</small></section>
+<script>
+const element=id=>document.getElementById(id);
+const message=text=>element('message').textContent=text;
+async function api(path,body){
+ const response=await fetch('/api/'+path,{method:body?'POST':'GET',headers:body?{'Content-Type':'application/json','X-Eye-Request':'1'}:{},body:body?JSON.stringify(body):undefined});
+ if(!response.ok)throw Error(await response.text());
+ return response.json();
+}
+function action(callback){return async()=>{try{await callback();message('Comando aplicado.')}catch(error){message(error.message)}}}
+for(const axis of ['x','y']){
+ const row=document.createElement('tr');
+ row.innerHTML='<th>'+axis.toUpperCase()+'</th>'+['min','center','max'].map(field=>'<td><input type="number" min="500" max="2500" step="5" id="'+axis+'_'+field+'"></td>').join('')+'<td><input type="checkbox" id="'+axis+'_inverted"></td>';
+ element('axes').append(row);
+ for(const [label,value] of [['mínimo',-1],['centro',0],['máximo',1]]){
+  const button=document.createElement('button');button.textContent=axis.toUpperCase()+' '+label;
+  button.onclick=action(async()=>{await api('control',{mode:'manual'});await api('control',{[axis]:value})});
+  element('positions').append(button);
+ }
+}
+let initialized=false,busy=false;
+async function poll(){
+ if(busy)return;busy=true;
+ try{
+  const state=await api('status');
+  element('arm').textContent=state.armed?'Servos ativados':'Ativar servos';
+  element('cameraStatus').textContent=state.camera_ready?(state.face?'Rosto detectado':'Câmera pronta · procurando rosto'):'Câmera desligada · '+state.camera_error;
+  if(document.activeElement!==element('mode'))element('mode').value=state.mode;
+  element('camera').checked=state.camera;
+  if(!initialized){
+   for(const axis of ['x','y'])for(const field of ['min','center','max','inverted']){
+    const input=element(axis+'_'+field);if(field==='inverted')input.checked=state.calibration[axis][field];else input.value=state.calibration[axis][field];
+   }
+   for(const field of ['lid_open','lid_closed'])element(field).value=state.calibration[field];
+   element('lid_enabled').checked=state.calibration.lid_enabled;
+   for(const field of ['smoothing','speed','deadband'])element(field).value=state[field];
+   initialized=true;message('Conectado. Revise a calibração antes de ativar os servos.');
+  }
+  const context=element('eye').getContext('2d');context.clearRect(0,0,400,240);
+  context.fillStyle='#dceafb';context.beginPath();context.ellipse(200,120,150,85,0,0,Math.PI*2);context.fill();
+  context.fillStyle='#348dbe';context.beginPath();context.arc(200+state.x*95,120+state.y*50,38,0,Math.PI*2);context.fill();
+  context.fillStyle='#091627';context.beginPath();context.arc(200+state.x*95,120+state.y*50,18,0,Math.PI*2);context.fill();
+  if(state.face){context.strokeStyle='#ffce63';context.strokeRect(200+state.face_x*180-8,120+state.face_y*100-8,16,16)}
+ }catch(error){message('Sem conexão: '+error.message)}finally{busy=false}
+}
+element('arm').onclick=action(()=>api('control',{armed:true}));
+element('stop').onclick=action(()=>api('control',{armed:false,mode:'manual'}));
+element('mode').onchange=action(()=>api('control',{mode:element('mode').value}));
+element('camera').onchange=action(()=>api('control',{camera:element('camera').checked}));
+for(const axis of ['x','y','lid'])element(axis).onchange=action(async()=>{await api('control',{mode:'manual'});await api('control',{[axis]:Number(element(axis).value)})});
+element('center').onclick=action(async()=>{await api('control',{mode:'manual'});await api('control',{x:0,y:0,lid:0});element('x').value=element('y').value=element('lid').value=0});
+element('tuning').onclick=action(()=>api('control',Object.fromEntries(['smoothing','speed','deadband'].map(field=>[field,Number(element(field).value)]))));
+function calibration(persist){
+ const value={persist};
+ for(const axis of ['x','y'])value[axis]={min:Number(element(axis+'_min').value),center:Number(element(axis+'_center').value),max:Number(element(axis+'_max').value),inverted:element(axis+'_inverted').checked};
+ for(const field of ['lid_open','lid_closed'])value[field]=Number(element(field).value);
+ value.lid_enabled=element('lid_enabled').checked;return value;
+}
+element('preview').onclick=action(()=>api('calibration',calibration(false)));
+element('save').onclick=action(()=>api('calibration',calibration(true)));
+element('wifiForm').onsubmit=async event=>{event.preventDefault();try{await api('wifi',{ssid:element('ssid').value,password:element('password').value});message('Wi-Fi salvo. Reiniciando…')}catch(error){message(error.message)}};
+element('upload').onclick=()=>{
+ const file=element('firmware').files[0];if(!file){message('Selecione o firmware .bin.');return}
+ if(!confirm('Atualizar firmware e reiniciar?'))return;
+ const request=new XMLHttpRequest();request.open('POST','/api/ota');request.setRequestHeader('X-Eye-Request','1');request.setRequestHeader('Content-Type','application/octet-stream');
+ request.upload.onprogress=event=>{if(event.lengthComputable)element('progress').value=100*event.loaded/event.total};
+ request.onload=()=>message(request.responseText);request.onerror=()=>message('Falha no envio; reconecte e tente novamente.');
+ request.send(file);message('Enviando firmware…');
+};
+poll();setInterval(poll,1500);
+</script></html>
