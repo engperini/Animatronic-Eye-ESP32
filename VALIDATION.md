@@ -18,9 +18,17 @@
 
 Build concluído sem erros ou avisos do compilador. Imagem: 0x21d990 bytes; 45% de espaço livre em cada slot OTA. SHA-256 do binário validado: `bb63df6eaea83f6191121ef78f39fa42456094bcc37edb7bb7d4e4e2a04d62ba`.
 
+## Flash USB e inicialização verificados
+
+- Placa detectada na COM8: ESP32-S3 revisão v0.2, flash de 8 MB e PSRAM de 8 MB.
+- Bootloader, tabela de partições, dados OTA iniciais e aplicativo gravados por USB; hashes verificados pelo esptool.
+- Log de boot confirma ESP-IDF v5.5, aplicativo 1.0.0, teste de PSRAM aprovado e AP/DHCP iniciado em 192.168.4.1.
+- Após 10 segundos: `Startup self-test complete; outputs disarmed; camera OFF`.
+- Nenhum servo foi ativado e a câmera não foi inicializada nesta verificação. As credenciais individuais não são publicadas no repositório.
+
 ## Testes de bancada pendentes
 
-Não foi realizado flash ou teste físico neste trabalho. Execute na sua montagem:
+Flash e inicialização foram verificados pelo serial. Os testes funcionais de portal, mecanismo, câmera e OTA ainda devem ser executados na montagem:
 
 1. Sem módulo de câmera: boot, AP, login, servos inicialmente sem PWM.
 2. Manual: centro e extremos de X/Y; respeitar limites com movimento suavizado.
