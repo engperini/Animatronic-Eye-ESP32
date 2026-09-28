@@ -9,10 +9,31 @@
 static void control_task(void *) {
     TickType_t wake=xTaskGetTickCount();
     int64_t next_random=0;
+    int64_t next_blink=0;
+    int64_t blink_started=-1;
     while(true) {
         {
             StateLock lock;
             eye.control_heartbeat=esp_timer_get_time();
+            const int64_t now=eye.control_heartbeat;
+            if(eye.armed && eye.mode==Mode::Random && eye.calibration.lid_enabled) {
+                if(next_blink==0) next_blink=now+2000000+esp_random()%4000000;
+                if(blink_started<0 && now>=next_blink) blink_started=now;
+                if(blink_started>=0) {
+                    const int64_t elapsed=now-blink_started;
+                    if(elapsed<120000) eye.lid=static_cast<float>(elapsed)/120000;
+                    else if(elapsed<180000) eye.lid=1;
+                    else if(elapsed<360000) eye.lid=1-static_cast<float>(elapsed-180000)/180000;
+                    else {
+                        eye.lid=0;
+                        blink_started=-1;
+                        next_blink=now+2000000+esp_random()%4000000;
+                    }
+                } else eye.lid=fmaxf(0,eye.lid-0.1f);
+            } else {
+                next_blink=0;
+                blink_started=-1;
+            }
             if(eye.armed) {
                 if(eye.mode==Mode::Random && esp_timer_get_time()>next_random) {
                     eye.target_x=(static_cast<int>(esp_random()%1801)-900)/1000.0f;

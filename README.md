@@ -108,7 +108,8 @@ Selecione **Seguir rosto** para habilitar tracking. A câmera precisa estar liga
 - Velocidade máxima padrão: 0,8 unidade normalizada/s.
 - Sem rosto, com câmera indisponível ou dados com mais de 600 ms, mantém a posição.
 - Manual e aleatório usam a mesma suavização, limite de velocidade e limites mecânicos.
-- A pálpebra é controlada separadamente e não participa da detecção.
+- No modo aleatório, a pálpebra habilitada pisca automaticamente: espera de 2–6 segundos, fechamento em 120 ms, pausa de 60 ms e abertura em 180 ms. O curso usa somente os valores aberta/fechada calibrados.
+- Nos modos manual e tracking, a pálpebra é controlada pelo slider e não participa da detecção. Desativar os servos ou sair do modo aleatório cancela o ciclo automático.
 
 A taxa real de detecção depende do sensor, iluminação e carga do processador. Não há reconhecimento de identidade.
 
