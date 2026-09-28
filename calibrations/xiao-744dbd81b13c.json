@@ -1,0 +1,17 @@
+{
+  "x": {
+    "min": 1400,
+    "center": 1900,
+    "max": 2300,
+    "inverted": true
+  },
+  "y": {
+    "min": 1300,
+    "center": 1900,
+    "max": 2300,
+    "inverted": true
+  },
+  "lid_open": 1500,
+  "lid_closed": 1700,
+  "lid_enabled": true
+}
