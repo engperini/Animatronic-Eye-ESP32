@@ -31,8 +31,11 @@ esp_err_t servo_init() {
 }
 esp_err_t servo_write(int channel,int microseconds) {
     if(channel<0 || channel>2 || microseconds<500 || microseconds>2500) return ESP_ERR_INVALID_ARG;
-    return ledc_set_duty_and_update(LEDC_LOW_SPEED_MODE,static_cast<ledc_channel_t>(channel+1),
-        static_cast<uint32_t>(microseconds)*16384/20000,0);
+    const auto ledc_channel=static_cast<ledc_channel_t>(channel+1);
+    esp_err_t result=ledc_set_duty(LEDC_LOW_SPEED_MODE,ledc_channel,
+        static_cast<uint32_t>(microseconds)*16384/20000);
+    if(result!=ESP_OK) return result;
+    return ledc_update_duty(LEDC_LOW_SPEED_MODE,ledc_channel);
 }
 void servo_stop(int channel) {
     ledc_stop(LEDC_LOW_SPEED_MODE,static_cast<ledc_channel_t>(channel+1),0);
