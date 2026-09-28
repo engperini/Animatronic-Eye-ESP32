@@ -69,15 +69,15 @@ O primeiro flash deve incluir bootloader e tabela de partições; use `idf.py fl
 ## Primeiro teste, sem câmera
 
 1. Desconecte mecanicamente os braços dos servos antes da primeira centralização. Os pulsos padrão de 1300/1500/1700 µs são apenas um ponto de partida, não uma calibração do seu mecanismo.
-2. Grave o firmware e abra o monitor serial. Localize a linha `AP: AnimatronicEye-XXXXXX | Password: ...`.
-3. Conecte-se à rede indicada. A senha aleatória de 16 caracteres é persistida na NVS e permanece igual após reiniciar.
+2. Grave o firmware e abra o monitor serial. Localize a linha `AP: AnimatronicEye-XXXXXX | Open Wi-Fi`.
+3. Conecte-se à rede indicada, aberta e sem senha.
 4. Abra **http://192.168.4.1/**. Se o portal cativo não abrir automaticamente, use essa URL diretamente no navegador.
-5. Autentique com usuário **admin** e a mesma senha do AP.
+5. O portal abre diretamente, sem usuário ou senha de administrador.
 6. Deixe a câmera desligada e a pálpebra desabilitada. Clique em **Ativar servos** e **Centralizar**. Monte os braços no centro somente depois de verificar o posicionamento.
 7. Faça a calibração descrita abaixo. Teste os movimentos manual e aleatório dentro dos limites calibrados.
 8. **Parar / desativar** corta o PWM dos três canais. Isso não corta a alimentação elétrica nem garante que um servo digital remova o torque.
 
-A senha do AP/portal é exibida somente no serial, não por um endpoint do portal. O AP de recuperação permanece disponível mesmo com STA conectado. A XIAO não fornece acesso à internet pelo AP.
+O AP de recuperação permanece aberto mesmo com STA conectado. A XIAO não fornece acesso à internet pelo AP. A senha de AP de versões anteriores, caso exista na NVS, é ignorada.
 
 ## Calibração visual e NVS
 
@@ -114,11 +114,11 @@ A taxa real de detecção depende do sensor, iluminação e carga do processador
 
 ## Wi-Fi e portal
 
-O portal salva SSID e senha na NVS e reinicia. São aceitos SSIDs de 1–32 bytes, senha vazia para rede aberta ou 8–63 bytes para senha WPA/WPA2. A STA usa DHCP e tenta reconectar a cada 5 segundos após desconexão. O AP protegido permanece disponível para corrigir uma senha incorreta ou falha do roteador.
+O portal salva SSID e senha do roteador na NVS e reinicia. São aceitos SSIDs de 1–32 bytes, senha vazia para rede aberta ou 8–63 bytes para senha WPA/WPA2. A STA usa DHCP e tenta reconectar a cada 5 segundos após desconexão. O AP aberto permanece disponível para corrigir uma senha incorreta ou falha do roteador.
 
 O DNS cativo responde consultas IPv4 no AP apontando para 192.168.4.1; requisições HTTP de detecção recebem redirecionamento. Sistemas que exigem HTTPS podem não abrir o portal automaticamente. Na LAN, use o IP atribuído pelo roteador.
 
-Portal e APIs exigem autenticação HTTP Basic. Alterações exigem também `X-Eye-Request: 1`; não há CORS permissivo. **Use em rede local confiável:** HTTP não cifra a senha nem o upload na LAN. Não exponha a porta 80 à internet.
+Portal e APIs não exigem login, incluindo controle, configuração e OTA. Qualquer pessoa conectada ao AP ou à mesma LAN pode acessá-los. Alterações ainda exigem `X-Eye-Request: 1`; esse cabeçalho não é autenticação e não há CORS permissivo. Use apenas em ambiente confiável; o Wi-Fi aberto e HTTP não cifram o tráfego. Não exponha a porta 80 à internet.
 
 ## OTA e rollback
 
@@ -142,7 +142,7 @@ Upload incompleto ou imagem inválida não altera a partição de boot. O rollba
 | `camera` | Inicialização sob demanda, captura e detecção MSR/MNP |
 | `tracking` | Deadband, suavização, velocidade e reação à perda do rosto |
 | `wifi` | STA, AP de recuperação, credenciais e DNS cativo |
-| `web` | Portal embarcado e APIs autenticadas |
+| `web` | Portal embarcado e APIs sem login |
 | `ota` | Upload binário, validação, troca de slot e confirmação |
 | `core` | Estado compartilhado protegido por mutex recursivo |
 | `main` | Inicialização e confirmação da saúde após OTA |

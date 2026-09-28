@@ -16,7 +16,7 @@
 - Execução do JavaScript com DOM/API simulados: inicialização, ativação/parada, centro, calibração temporária/persistente, câmera, movimento manual, cabeçalhos e exibição de erros — aprovada.
 - Verificação de espaços em branco e arquivos versionados antes de publicar.
 
-Build concluído sem erros ou avisos do compilador. Imagem: 0x21d990 bytes; 45% de espaço livre em cada slot OTA. SHA-256 do binário validado: `bb63df6eaea83f6191121ef78f39fa42456094bcc37edb7bb7d4e4e2a04d62ba`.
+Build inicial concluído sem erros ou avisos do compilador. Imagem original, anterior à remoção das senhas: 0x21d990 bytes; 45% de espaço livre em cada slot OTA. SHA-256 desse binário original: `bb63df6eaea83f6191121ef78f39fa42456094bcc37edb7bb7d4e4e2a04d62ba`.
 
 ## Flash USB e inicialização verificados
 
@@ -30,7 +30,7 @@ Build concluído sem erros ou avisos do compilador. Imagem: 0x21d990 bytes; 45% 
 
 Flash e inicialização foram verificados pelo serial. Os testes funcionais de portal, mecanismo, câmera e OTA ainda devem ser executados na montagem:
 
-1. Sem módulo de câmera: boot, AP, login, servos inicialmente sem PWM.
+1. Sem módulo de câmera: boot, AP aberto, portal sem login, servos inicialmente sem PWM.
 2. Manual: centro e extremos de X/Y; respeitar limites com movimento suavizado.
 3. Calibração: rejeitar mínimo >= centro, centro >= máximo e pulsos fora de 500–2500 µs.
 4. Tentar alterar calibração com servos ativados: deve recusar.
@@ -41,7 +41,7 @@ Flash e inicialização foram verificados pelo serial. Os testes funcionais de p
 9. Camera ausente: ligar câmera deve informar erro sem impedir controle manual.
 10. Com Sense/PSRAM: ligar/desligar câmera repetidamente; verificar detecção, direção do tracking e ausência de fuga de memória.
 11. Tracking: deadband, limites de velocidade, rosto perdido e desligamento de câmera.
-12. Segurança HTTP: sem credenciais deve retornar 401; POST sem X-Eye-Request deve retornar 403.
+12. HTTP: portal/status sem credenciais devem retornar 200; POST sem X-Eye-Request deve retornar 403.
 13. OTA: imagem válida reinicia, conserva NVS e confirma após autoteste; arquivo inválido ou upload interrompido preserva aplicativo atual.
 14. Rollback: em firmware de teste, provoque reset antes da confirmação; o boot seguinte deve recuperar a versão válida anterior.
 15. Teste prolongado com a fonte definitiva: servos, Wi-Fi e detecção ativos; monitorar reset por alimentação e aquecimento.

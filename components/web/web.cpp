@@ -5,21 +5,10 @@
 #include "eye_ota.hpp"
 #include "esp_http_server.h"
 #include "cJSON.h"
-#include "mbedtls/base64.h"
 #include <cstring>
 #include <cstdlib>
 #include <cstdio>
 extern const char page_start[] asm("_binary_index_html_start");
-static char authorization[96];
-static bool authenticate(httpd_req_t *request) {
-    char supplied[96]={};
-    if(httpd_req_get_hdr_value_str(request,"Authorization",supplied,sizeof(supplied))==ESP_OK &&
-       strcmp(supplied,authorization)==0) return true;
-    httpd_resp_set_status(request,"401 Unauthorized");
-    httpd_resp_set_hdr(request,"WWW-Authenticate","Basic realm=\"Animatronic Eye\"");
-    httpd_resp_sendstr(request,"Authentication required");
-    return false;
-}
 static bool mutation_allowed(httpd_req_t *request) {
     char header[8]={};
     if(httpd_req_get_hdr_value_str(request,"X-Eye-Request",header,sizeof(header))==ESP_OK && strcmp(header,"1")==0) return true;
@@ -45,7 +34,6 @@ static cJSON *axis_json(const AxisCalibration &axis) {
     return json;
 }
 static esp_err_t status_handler(httpd_req_t *request) {
-    if(!authenticate(request)) return ESP_OK;
     EyeState current;
     { StateLock lock; current=eye; }
     cJSON *json=cJSON_CreateObject();
@@ -105,7 +93,7 @@ static bool parse_axis(cJSON *json,AxisCalibration &axis) {
         integer(json,"max",axis.maximum) && boolean(json,"inverted",axis.inverted);
 }
 static esp_err_t command_handler(httpd_req_t *request) {
-    if(!authenticate(request) || !mutation_allowed(request)) return ESP_OK;
+    if(!mutation_allowed(request)) return ESP_OK;
     cJSON *json=read_json(request);
     if(!cJSON_IsObject(json)) { cJSON_Delete(json); return httpd_resp_send_err(request,HTTPD_400_BAD_REQUEST,"Invalid JSON"); }
     bool valid=true;
@@ -173,7 +161,6 @@ static esp_err_t page_handler(httpd_req_t *request) {
         httpd_resp_set_hdr(request,"Location","http://192.168.4.1/");
         return httpd_resp_sendstr(request,"Open the configuration portal");
     }
-    if(!authenticate(request)) return ESP_OK;
     httpd_resp_set_type(request,"text/html");
     httpd_resp_set_hdr(request,"Cache-Control","no-store");
     httpd_resp_set_hdr(request,"X-Frame-Options","DENY");
@@ -181,17 +168,10 @@ static esp_err_t page_handler(httpd_req_t *request) {
     return httpd_resp_sendstr(request,page_start);
 }
 static esp_err_t upload_handler(httpd_req_t *request) {
-    if(!authenticate(request) || !mutation_allowed(request)) return ESP_OK;
+    if(!mutation_allowed(request)) return ESP_OK;
     return eye_ota_upload(request);
 }
 esp_err_t web_start() {
-    char credentials[64];
-    snprintf(credentials,sizeof(credentials),"admin:%s",eye_wifi_password());
-    size_t encoded=0;
-    memcpy(authorization,"Basic ",6);
-    if(mbedtls_base64_encode(reinterpret_cast<unsigned char *>(authorization+6),sizeof(authorization)-7,&encoded,
-        reinterpret_cast<const unsigned char *>(credentials),strlen(credentials))!=0) return ESP_FAIL;
-    authorization[encoded+6]=0;
     httpd_config_t config=HTTPD_DEFAULT_CONFIG();
     config.stack_size=8192; config.max_uri_handlers=8;
     config.uri_match_fn=httpd_uri_match_wildcard;
