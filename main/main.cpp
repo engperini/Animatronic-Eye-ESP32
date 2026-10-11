@@ -16,7 +16,8 @@ extern "C" void app_main() {
     ESP_ERROR_CHECK(nvs_flash_init());
     esp_err_t calibration_result=calibration_load();
     if(calibration_result!=ESP_OK) ESP_LOGW("eye","Using safe defaults: %s",esp_err_to_name(calibration_result));
-    ESP_ERROR_CHECK(servo_init());
+    const esp_err_t servo_result = servo_init();
+    if (servo_result != ESP_OK) ESP_LOGW("eye", "PCA9685 unavailable (%s); continuing without servos", esp_err_to_name(servo_result));
     ESP_ERROR_CHECK(eye_control_start());
     ESP_ERROR_CHECK(eye_camera_start());
     ESP_ERROR_CHECK(eye_wifi_start());
