@@ -1,4 +1,22 @@
 menu "Animatronic eye"
+choice EYE_SERVO_BACKEND
+    prompt "Servo PWM backend"
+    default EYE_SERVO_LEDC
+config EYE_SERVO_LEDC
+    bool "Direct GPIO LEDC (original)"
+config EYE_SERVO_PCA9685
+    bool "PCA9685 I2C controller"
+endchoice
+config EYE_PCA_SDA_GPIO
+    int "PCA9685 SDA GPIO"
+    depends on EYE_SERVO_PCA9685
+    range 0 48
+    default 5
+config EYE_PCA_SCL_GPIO
+    int "PCA9685 SCL GPIO"
+    depends on EYE_SERVO_PCA9685
+    range 0 48
+    default 6
 config EYE_X_GPIO
     int "Horizontal servo GPIO"
     range 0 48
