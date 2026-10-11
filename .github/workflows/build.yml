@@ -17,3 +17,20 @@ jobs:
           . /opt/esp/idf/export.sh
           idf.py set-target esp32s3
           idf.py build
+      - name: Verify OTA application image
+        shell: bash
+        run: |
+          set -euo pipefail
+          test -s build/animatronic_eye.bin
+          sha256sum build/animatronic_eye.bin | tee build/animatronic_eye.bin.sha256
+          printf 'Git commit: %s\nESP-IDF: 5.5.2\nTarget: esp32s3\nOTA file: animatronic_eye.bin\n' "${GITHUB_SHA}" > build/OTA-README.txt
+      - name: Upload Animatronic Eye OTA firmware
+        uses: actions/upload-artifact@v4
+        with:
+          name: animatronic-eye-esp32s3-ota
+          path: |
+            build/animatronic_eye.bin
+            build/animatronic_eye.bin.sha256
+            build/OTA-README.txt
+          if-no-files-found: error
+          retention-days: 90
