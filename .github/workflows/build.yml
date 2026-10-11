@@ -20,6 +20,7 @@ jobs:
         run: |
           if [ "${{ matrix.backend }}" = "ledc" ]; then
             sed -i '/^CONFIG_EYE_SERVO_PCA9685=y$/d' sdkconfig.defaults
+            echo '# CONFIG_EYE_SERVO_PCA9685 is not set' >> sdkconfig.defaults
             echo 'CONFIG_EYE_SERVO_LEDC=y' >> sdkconfig.defaults
           fi
       - name: Build
