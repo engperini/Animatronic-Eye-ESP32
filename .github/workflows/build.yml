@@ -1,0 +1,30 @@
+name: ESP-IDF build
+on:
+  push:
+    branches: [main, feature/pca9685-servo-backend]
+  pull_request:
+  workflow_dispatch:
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        backend: [pca9685, ledc]
+    container:
+      image: espressif/idf:v5.5.2
+    steps:
+      - uses: actions/checkout@v4
+      - name: Configure backend
+        shell: bash
+        run: |
+          if [ "${{ matrix.backend }}" = "ledc" ]; then
+            sed -i '/^CONFIG_EYE_SERVO_PCA9685=y$/d' sdkconfig.defaults
+            echo 'CONFIG_EYE_SERVO_LEDC=y' >> sdkconfig.defaults
+          fi
+      - name: Build
+        shell: bash
+        run: |
+          . /opt/esp/idf/export.sh
+          idf.py set-target esp32s3
+          idf.py build
