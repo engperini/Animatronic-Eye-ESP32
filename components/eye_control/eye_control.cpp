@@ -5,12 +5,15 @@
 #include "tracking.hpp"
 #include "esp_random.h"
 #include "esp_timer.h"
+#include "esp_log.h"
 #include "freertos/task.h"
 static void control_task(void *) {
     TickType_t wake=xTaskGetTickCount();
     int64_t next_random=0;
     int64_t next_blink=0;
     int64_t blink_started=-1;
+    int64_t next_servo_retry=0;
+    bool servo_available=false;
     while(true) {
         {
             StateLock lock;
@@ -34,6 +37,13 @@ static void control_task(void *) {
                 next_blink=0;
                 blink_started=-1;
             }
+            if (!servo_available && now >= next_servo_retry) {
+                const esp_err_t err=servo_init();
+                servo_available=(err==ESP_OK);
+                next_servo_retry=now+5000000;
+                if (servo_available) ESP_LOGI("eye_control","PCA9685 connected; servo control available");
+                else ESP_LOGW("eye_control","PCA9685 unavailable (%s); retrying in 5s",esp_err_to_name(err));
+            }
             if(eye.armed) {
                 if(eye.mode==Mode::Random && esp_timer_get_time()>next_random) {
                     eye.target_x=(static_cast<int>(esp_random()%1801)-900)/1000.0f;
@@ -43,12 +53,19 @@ static void control_task(void *) {
                 if(eye.mode==Mode::Tracking) tracking_update();
                 eye.x=tracking_step(eye.x,eye.target_x,eye.smoothing,eye.speed,0.02f);
                 eye.y=tracking_step(eye.y,eye.target_y,eye.smoothing,eye.speed,0.02f);
-                ESP_ERROR_CHECK(servo_write(0,calibration_pulse(eye.calibration.x,eye.x)));
-                ESP_ERROR_CHECK(servo_write(1,calibration_pulse(eye.calibration.y,eye.y)));
-                if(eye.calibration.lid_enabled)
-                    ESP_ERROR_CHECK(servo_write(2,lroundf(eye.calibration.lid_open+eye.lid*(eye.calibration.lid_closed-eye.calibration.lid_open))));
-                else servo_stop(2);
-            } else for(int channel=0;channel<3;channel++) servo_stop(channel);
+                if (servo_available) {
+                    esp_err_t err=servo_write(0,calibration_pulse(eye.calibration.x,eye.x));
+                    if (err==ESP_OK) err=servo_write(1,calibration_pulse(eye.calibration.y,eye.y));
+                    if (err==ESP_OK && eye.calibration.lid_enabled)
+                        err=servo_write(2,lroundf(eye.calibration.lid_open+eye.lid*(eye.calibration.lid_closed-eye.calibration.lid_open)));
+                    else if (err==ESP_OK) servo_stop(2);
+                    if (err!=ESP_OK) {
+                        ESP_LOGW("eye_control","PCA9685 communication lost (%s); disabling outputs",esp_err_to_name(err));
+                        servo_available=false;
+                        next_servo_retry=now+5000000;
+                    }
+                }
+            } else if (servo_available) for(int channel=0;channel<3;channel++) servo_stop(channel);
         }
         vTaskDelayUntil(&wake,pdMS_TO_TICKS(20));
     }
