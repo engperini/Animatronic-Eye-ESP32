@@ -45,6 +45,15 @@ static esp_err_t status_handler(httpd_req_t *request) {
     cJSON_AddBoolToObject(json,"camera_ready",current.camera_ready);
     cJSON_AddStringToObject(json,"camera_error",esp_err_to_name(current.camera_error));
     cJSON_AddBoolToObject(json,"face",current.face);
+    cJSON_AddNumberToObject(json,"camera_frames",current.camera_frames);
+    cJSON_AddNumberToObject(json,"camera_detections",current.camera_detections);
+    cJSON_AddNumberToObject(json,"camera_capture_failures",current.camera_capture_failures);
+    cJSON_AddNumberToObject(json,"camera_processing_ms",current.camera_processing_ms);
+    cJSON_AddNumberToObject(json,"camera_free_heap",current.camera_free_heap);
+    cJSON_AddNumberToObject(json,"camera_free_psram",current.camera_free_psram);
+    cJSON_AddNumberToObject(json,"camera_uptime_ms",current.camera_uptime_ms);
+    cJSON_AddNumberToObject(json,"face_hits",current.face_hits);
+    cJSON_AddNumberToObject(json,"face_misses",current.face_misses);
     cJSON_AddNumberToObject(json,"face_x",current.face_x); cJSON_AddNumberToObject(json,"face_y",current.face_y);
     cJSON_AddNumberToObject(json,"smoothing",current.smoothing);
     cJSON_AddNumberToObject(json,"speed",current.speed);
