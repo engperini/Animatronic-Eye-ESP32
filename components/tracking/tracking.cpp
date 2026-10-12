@@ -6,7 +6,7 @@ float tracking_step(float position,float target,float smoothing,float speed,floa
     return bounded(position+bounded(delta,-speed*seconds,speed*seconds));
 }
 void tracking_update() {
-    if(!eye.camera_ready || !eye.face || esp_timer_get_time()-eye.face_time>600000) {
+    if(!eye.camera_ready || !eye.face || esp_timer_get_time()-eye.face_time>1200000) {
         eye.target_x=eye.x; eye.target_y=eye.y;
         return;
     }
