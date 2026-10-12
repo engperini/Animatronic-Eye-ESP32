@@ -21,6 +21,10 @@ struct EyeState {
     bool armed=false, camera_requested=false, camera_ready=false, face=false;
     float face_x=0, face_y=0;
     int64_t face_time=0;
+    uint32_t camera_frames=0, camera_detections=0, camera_capture_failures=0;
+    uint32_t camera_processing_ms=0, camera_free_heap=0, camera_free_psram=0;
+    uint32_t camera_uptime_ms=0;
+    uint8_t face_hits=0, face_misses=0;
     int64_t control_heartbeat=0;
     esp_err_t camera_error=ESP_OK;
 };
