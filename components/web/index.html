@@ -33,7 +33,7 @@ table{border-collapse:collapse}td,th{padding:7px;text-align:left}@media(max-widt
 <p><button id="preview">Aplicar sem gravar</button><button id="save">Gravar na NVS</button></p>
 <div id="positions"></div><small>Aplicar altera os limites imediatamente; mantenha os servos desativados ao configurar valores novos. Os botões de teste usam os limites aplicados. Reiniciar restaura a última gravação.</small></section>
 <section><h2>Câmera e tracking</h2><label><input id="camera" type="checkbox"> Câmera ligada</label>
-<p id="cameraStatus">Câmera desligada</p><small>A câmera inicia desligada. Ligue-a e escolha “Seguir rosto” para tracking. Sem rosto, mantém a posição. A visualização acima mostra coordenadas; não é transmissão de vídeo.</small></section>
+<p id="cameraStatus">Câmera desligada</p><div id="cameraDiagnostics" style="font-size:.92rem;line-height:1.7;background:#101e30;padding:12px;border-radius:8px;white-space:pre-wrap">Aguardando diagnóstico…</div><small>A câmera inicia desligada. Ligue-a e escolha “Seguir rosto” para tracking. Sem rosto, mantém a posição. A visualização acima mostra coordenadas; não é transmissão de vídeo.</small></section>
 <section><h2>Wi-Fi</h2><form id="wifiForm"><label>Rede <input id="ssid" maxlength="32" required autocomplete="off"></label>
 <label>Senha <input id="password" type="password" maxlength="63" autocomplete="new-password"></label><button>Salvar e reiniciar</button></form>
 <small>Rede de recuperação permanece disponível em 192.168.4.1, inclusive se a conexão com o roteador falhar.</small></section>
@@ -59,13 +59,21 @@ for(const axis of ['x','y']){
   element('positions').append(button);
  }
 }
-let initialized=false,busy=false;
+let initialized=false,busy=false,connectionFailures=0,lastStatusAt=0;
 async function poll(){
  if(busy)return;busy=true;
  try{
   const state=await api('status');
   element('arm').textContent=state.armed?'Servos ativados':'Ativar servos';
-  element('cameraStatus').textContent=state.camera_ready?(state.face?'Rosto detectado':'Câmera pronta · procurando rosto'):'Câmera desligada · '+state.camera_error;
+  connectionFailures=0;lastStatusAt=Date.now();
+  element('cameraStatus').textContent=state.camera_ready?(state.face?'Rosto detectado (estável)':'Câmera pronta · procurando rosto'):(state.camera?'Câmera inicializando / erro: '+state.camera_error:'Câmera desligada · '+state.camera_error);
+  element('cameraDiagnostics').textContent=
+   'Conexão HTTP: OK | Modo: '+state.mode+' | Servos: '+(state.armed?'ativos':'desativados')+'\n'+
+   'Rosto: '+(state.face?'CONFIRMADO':'não confirmado')+' | Acertos seguidos: '+state.face_hits+' | Falhas seguidas: '+state.face_misses+'\n'+
+   'Posição X: '+Number(state.face_x).toFixed(2)+' | Y: '+Number(state.face_y).toFixed(2)+'\n'+
+   'Frames: '+state.camera_frames+' | Detecções: '+state.camera_detections+' | Falhas de captura: '+state.camera_capture_failures+'\n'+
+   'Última análise: '+state.camera_processing_ms+' ms | RAM livre: '+Math.round(state.camera_free_heap/1024)+' KB | PSRAM livre: '+Math.round(state.camera_free_psram/1024)+' KB\n'+
+   'Tempo ativo: '+Math.floor(state.camera_uptime_ms/1000)+' s | Erro: '+state.camera_error;
   if(document.activeElement!==element('mode'))element('mode').value=state.mode;
   element('camera').checked=state.camera;
   if(!initialized){
@@ -82,7 +90,7 @@ async function poll(){
   context.fillStyle='#348dbe';context.beginPath();context.arc(200+state.x*95,120+state.y*50,38,0,Math.PI*2);context.fill();
   context.fillStyle='#091627';context.beginPath();context.arc(200+state.x*95,120+state.y*50,18,0,Math.PI*2);context.fill();
   if(state.face){context.strokeStyle='#ffce63';context.strokeRect(200+state.face_x*180-8,120+state.face_y*100-8,16,16)}
- }catch(error){message('Sem conexão: '+error.message)}finally{busy=false}
+ }catch(error){connectionFailures++;element('cameraDiagnostics').textContent='Falha HTTP ('+connectionFailures+' consecutivas): '+error.message+'\nÚltima resposta há '+(lastStatusAt?Math.round((Date.now()-lastStatusAt)/1000)+' s':'nenhum dado')+'\nSe os contadores reiniciarem após reconexão, investigar reboot do ESP32.';message('Sem conexão: '+error.message)}finally{busy=false}
 }
 element('arm').onclick=action(()=>api('control',{armed:true}));
 element('stop').onclick=action(()=>api('control',{armed:false,mode:'manual'}));
